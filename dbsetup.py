@@ -60,7 +60,7 @@ def getFeatures(feature1, feature2):
 	if conn == None:
 		print "Looks like DB is not initialized."
 	cursor = conn.cursor()
-	cursor.execute("SELECT Nucluei, Feature1, Feature2 FROM Features")
+	cursor.execute("SELECT Nucluei, "+feature1+", "+feature2+" FROM Features")
 	return cursor.fetchall()
 
 
