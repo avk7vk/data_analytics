@@ -61,7 +61,7 @@ def getFeatures(feature1, feature2):
 	if conn == None:
 		print "Looks like DB is not initialized."
 	cursor = conn.cursor()
-	cursor.execute("SELECT NUCLIE, "+feature1+", "+feature2+" FROM Features")
+	cursor.execute("SELECT NUCLEI, "+feature1+", "+feature2+" FROM Features")
 	return [(str(n), float(f1), float(f2)) for (n, f1, f2) in cursor.fetchall()]
 
 def getSingleFeature(feature):
@@ -69,7 +69,7 @@ def getSingleFeature(feature):
 	if conn == None:
 		print "Looks like DB is not initialized."
 	cursor = conn.cursor()
-        cursor.execute("SELECT NUCLIE, "+feature+" FROM Features")
+        cursor.execute("SELECT NUCLEI, "+feature+" FROM Features")
         return [(str(n), str(f)) for (n, f) in cursor.fetchall()]
 
 if __name__ == '__main__':
