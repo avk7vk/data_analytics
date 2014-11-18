@@ -11,7 +11,7 @@ temp2 = list()
 coordinates = list()
 def parse_data(path):
         pattern = '*.txt'
-	f.write('Area\tPerimeter\tEqui-diameter\tisContour\tConvex Area\tSolidity\tEllipse\tMajor Axis\tMinor Axis\tEccentricity\n')
+	f.write('Area\tPerimeter\tRoundness\tEqui-diameter\tisContour\tConvex Area\tSolidity\tEllipse\tMajor Axis\tMinor Axis\tEccentricity\n')
         for root, dirs, files in os.walk(path):
                 for filename in fnmatch.filter(files,pattern):
                         print os.path.join(root,filename)
@@ -31,6 +31,9 @@ def parse_data(path):
 
 					#perimeter
 					perimeter = cv2.arcLength(contr,True)
+
+					#roundness
+					roundness = (4*3.14*area)/(perimeter*perimeter)
 
     					# equivalent diameter
     					equi_diameter = nump.sqrt(4*area/nump.pi)
@@ -62,7 +65,7 @@ def parse_data(path):
     					# eccentricity = sqrt( 1 - (ma/MA)^2) --- ma= minor axis --- MA= major axis
     					eccentricity = nump.sqrt(1-(minoraxis_length/majoraxis_length)**2)
 
-    					f.write(str(area) + '\t' + str(perimeter))
+    					f.write(str(area) + '\t' + str(perimeter) + '\t' + str(roundness))
     					f.write('\t' + str(equi_diameter) + '\t' + str(isContour) + '\t' + str(convex_area))
     					f.write('\t' + str(solidity) + '\t' + str(ellipse) + '\t' + str(majoraxis_length) + '\t' + str(minoraxis_length) + '\t' + str(eccentricity) + '\n')
 
