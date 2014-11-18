@@ -11,7 +11,7 @@ temp2 = list()
 coordinates = list()
 def parse_data(path):
         pattern = '*.txt'
-	f.write('Area\tPerimeter\tEqui permeter\tisContour\tConvexity\tConvex Area\tSolidity\tEllipse\tMajor Axis\tMinor Axis\tEccentricity\n')
+	f.write('Area\tPerimeter\tEqui-diameter\tisContour\tConvex Area\tSolidity\tEllipse\tMajor Axis\tMinor Axis\tEccentricity\n')
         for root, dirs, files in os.walk(path):
                 for filename in fnmatch.filter(files,pattern):
                         print os.path.join(root,filename)
@@ -64,11 +64,10 @@ def parse_data(path):
 
     					f.write(str(area) + '\t' + str(perimeter))
     					f.write('\t' + str(equi_diameter) + '\t' + str(isContour) + '\t' + str(convex_area))
-    					f.write('\t' + str(solidity) + '\t' + str(ellipse) + '\t' + str(majoraxis_length) + '\t' + str(minoraxis_length) + '\t' + str(eccentricity))
+    					f.write('\t' + str(solidity) + '\t' + str(ellipse) + '\t' + str(majoraxis_length) + '\t' + str(minoraxis_length) + '\t' + str(eccentricity) + '\n')
 
 f.close
 
 if __name__ == '__main__':
         path = sys.argv[1]
         parse_data(path)
-
