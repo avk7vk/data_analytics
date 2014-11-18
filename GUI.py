@@ -88,16 +88,15 @@ class AppFrame(wx.Frame):
             panel = wx.Panel(self.sidePanel, -1)
             box = wx.StaticBox(panel,-1, name)
             sizer = wx.StaticBoxSizer(box, wx.VERTICAL)
+            
+            panel.rangeValue = {}
 
             for name, min_value, value, max_value in labels:
                 sp = SpinPanel(panel, name, min_value, value, max_value, self.OnSpinback)
+                panel.rangeValue[name] = sp
                 sizer.Add(sp, 0, wx.EXPAND)
 
-            if statictexts:
-                for name, text in statictexts:
-                    st = wx.StaticText(panel, -1, text)
-                    spinPanels[name] = st
-                    sizer.add(st, 0, wx.EXPAND)
+            print "done"
 
             panel.SetSizer(sizer)
             return panel
@@ -180,16 +179,21 @@ class AppFrame(wx.Frame):
         featureList =[]
         isShowUpdate = False
         k = self.optionPanel.textBox.GetValue()
+        isShowUpdate = self.optionPanel.showUpdates.GetValue()
 
-        print len(spinPanels)
         print 'spin_panels', spinPanels.keys()
         for key in featureCB.keys():
             if featureCB[key].GetValue():
                 featureList.append(key)
                 print featureCB[key].GetValue()
 
-        # for spin in spinPanels.keys():
-        #     print self.feature1.sp.sc.GetValue()
+        print featureList
+        print k
+        print isShowUpdate
+
+        for key in spinPanels.keys():
+            print self.feature1.rangeValue[key].sc.GetValue()
+            print self.feature2.rangeValue[key].sc.GetValue()
         #start the kmean process
 
 
