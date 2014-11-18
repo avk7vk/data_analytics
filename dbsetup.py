@@ -61,16 +61,17 @@ def getFeatures(feature1, feature2):
 		print "Looks like DB is not initialized."
 	cursor = conn.cursor()
 	cursor.execute("SELECT Nucluei, "+feature1+", "+feature2+" FROM Features")
-	return cursor.fetchall()
+	return [(str(n), float(f1), float(f2)) for (n, f1, f2) in cursor.fetchall()]
 
 
 if __name__ == '__main__':
+	
 	initializeBaseDB()
-	for i in range(10):
+	'''
+	for i in range(1000):
 		data = [str(i)]
-		data.extend([str(random.choice(range(10))) for i in range(10)])
-		insertData(data)
-	'''	
+		data.extend([str(random.choice(range(1000))) for i in range(10)])
+		insertData(data)	
 	conn = getConnBaseDB()
 	cursor = conn.cursor()
 	for i in range(10):
