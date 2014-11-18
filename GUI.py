@@ -1,7 +1,7 @@
 #
 #   TEAM #1 
 #   CLUSTERING ALGOTRITHM GUI
-#
+#   
 #
 
 
@@ -29,39 +29,24 @@ class DisplayPanel(wx.Panel):
             self.Refresh(False)
 
 class OptionsPanel(wx.Panel):
+
     def __init__(self, parent, display):
         wx.Panel.__init__(self, parent)
         self.display = display
 
         sizer = wx.StaticBoxSizer(wx.StaticBox(self, label = "Options"),
                                     wx.VERTICAL)
+        s = wx.GridSizer(rows = 1, cols = 2)
+        self.label = wx.StaticText(self, -1, "K-Value : ")
+        self.textBox = wx.TextCtrl(self, -1, "5")
+        s.Add(self.label,0,wx.BOTTOM|wx.LEFT, 2)
+        s.Add(self.textBox,0,wx.BOTTOM|wx.LEFT, 2)
+        sizer.Add(s)
 
         self.showUpdates = wx.CheckBox(self, label = "Enable Updates during Iteration")
         sizer.Add(self.showUpdates, 0, wx.BOTTOM|wx.LEFT, 2)
-
-        def createColorButton(label):
-            button = cs.ColourSelect(self, size=(20,22))
-            label = wx.StaticText(self, -1, label)
-            sizer = wx.BoxSizer(wx.HORIZONTAL)
-            sizer.Add(button)
-            sizer.Add((4,4))
-            sizer.Add(label, 0, wx.ALIGN_CENTER_VERTICAL)
-            return sizer, button
-
-        s, self.fg = createColorButton('Foreground')
-        sizer.Add(s)
-        s, self.bg = createColorButton('Background')
-        sizer.Add(s)
         self.SetSizer(sizer)
 
-        self.Bind(cs.EVT_COLOURSELECT, self.OnSetFG, self.fg)
-        self.Bind(cs.EVT_COLOURSELECT, self.OnSetFG, self.bg)
-
-    def OnSetFG(self, evt):
-        self.display.SetForegroundColour(evt.GetValue())
-        
-    def OnSetBG(self, evt):
-        self.display.SetBackgroundColour(evt.GetValue())
         
 class SpinPanel(wx.Panel):
     def __init__(self, parent, name, minValue, value, maxValue, callback):
@@ -81,16 +66,17 @@ class SpinPanel(wx.Panel):
         sizer.Add((1,1),1)
         sizer.Add(self.sc)
         self.SetSizer(sizer)
-
+        
         global spinPanels
         spinPanels[name] = self
+       
 
     def SetValue(self, value):
         self.sc.SetValue(value)
 
     def OnSpin(self, event):
         name = self.st.GetLabel()
-        value = self.st.GetValue()
+        value = self.sc.GetValue()
         if verbose:
             print 'On Spin', name, '=', value
         self.callback(name,value)
@@ -110,7 +96,7 @@ class AppFrame(wx.Frame):
             if statictexts:
                 for name, text in statictexts:
                     st = wx.StaticText(panel, -1, text)
-                    spin_panels[name] = st
+                    spinPanels[name] = st
                     sizer.add(st, 0, wx.EXPAND)
 
             panel.SetSizer(sizer)
@@ -191,6 +177,19 @@ class AppFrame(wx.Frame):
 
     def startProcess(self, event):
         print 'in kmeans'
+        featureList =[]
+        isShowUpdate = False
+        k = self.optionPanel.textBox.GetValue()
+
+        print len(spinPanels)
+        print 'spin_panels', spinPanels.keys()
+        for key in featureCB.keys():
+            if featureCB[key].GetValue():
+                featureList.append(key)
+                print featureCB[key].GetValue()
+
+        # for spin in spinPanels.keys():
+        #     print self.feature1.sp.sc.GetValue()
         #start the kmean process
 
 
