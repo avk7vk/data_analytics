@@ -29,9 +29,10 @@ def initializeBaseDB():
 	#Check if there is an already existing DB
 	dbconn = sqlite3.connect(basedb)
 	cursor = dbconn.cursor()
-	create = 'CREATE TABLE IF NOT EXISTS Features (Nucluei TEXT,\
-			  Feature1 TEXT, Feature2 TEXT, Feature3 TEXT, Feature4 TEXT, Feature5 TEXT,\
-			  Feature6 TEXT, Feature7 TEXT, Feature8 TEXT, Feature9 TEXT, Feature10 TEXT)'
+	create = 'CREATE TABLE IF NOT EXISTS Features (NUCLEI TEXT,\
+			  AREA REAL ,PERIMETER REAL, ROUNDNESS REAL,EQUI_DIAMETER REAL, CONVEX_AREA REAL,\
+			   SOLIDITY REAL, MAJOR_AXIS_LEN REAL, MINOR_AXIS_LEN REAL,ECCENTRICITY REAL, BOUNDARY_VALS TEXT,MEAN_PIXEL_DEN TEXT,\
+			   MAX_PIXEL_DEN TEXT,MIN_PIXEL_DEN TEXT)'
 	cursor.execute(create)
 	dbconn.commit()
 	#Make all the required settings and give a handle to evaluate function
@@ -43,26 +44,33 @@ def insertData(datalist, override=True):
 		print "Looks like DB is not initialized."
 	stuple = (datalist[0],)
 	cursor = conn.cursor()
-	cursor.execute("SELECT * FROM Features WHERE Nucluei = '%s'" % stuple)
+	cursor.execute("SELECT * FROM Features WHERE NUCLEI = '%s'" % stuple)
 	row = cursor.fetchall()
 	datatuple = tuple(datalist)
 	if len(row) == 0:
-		cursor.execute("INSERT INTO Features VALUES (?,?,?,?,?,?,?,?,?,?,?)", datatuple)
+		cursor.execute("INSERT INTO Features VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)", datatuple)
 		conn.commit()
 		print "Added entry",datatuple, "to database"
 	else:
 		if override:
-			cursor.execute("DELETE FROM Features WHERE Nucluei = '%s'" % stuple)
-			cursor.execute("INSERT INTO Features VALUES (?,?,?,?,?,?,?,?,?,?,?)", datatuple)
+			cursor.execute("DELETE FROM Features WHERE NUCLEI = '%s'" % stuple)
+			cursor.execute("INSERT INTO Features VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)", datatuple)
 			conn.commit()
 def getFeatures(feature1, feature2):
 	conn = getConnBaseDB()
 	if conn == None:
 		print "Looks like DB is not initialized."
 	cursor = conn.cursor()
-	cursor.execute("SELECT Nucluei, "+feature1+", "+feature2+" FROM Features")
+	cursor.execute("SELECT NUCLIE, "+feature1+", "+feature2+" FROM Features")
 	return [(str(n), float(f1), float(f2)) for (n, f1, f2) in cursor.fetchall()]
 
+def getSingleFeature(feature):
+	conn = getConnBaseDB()
+	if conn == None:
+		print "Looks like DB is not initialized."
+	cursor = conn.cursor()
+        cursor.execute("SELECT NUCLIE, "+feature+" FROM Features")
+        return [(str(n), str(f)) for (n, f) in cursor.fetchall()]
 
 if __name__ == '__main__':
 	
