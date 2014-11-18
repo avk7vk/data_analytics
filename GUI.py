@@ -132,7 +132,13 @@ class AppFrame(wx.Frame):
 		self.toolbar.SetSize(wx.Size(fw, th))
 		self.toolbar.update()
 		self.sidePanel = wx.Panel(self)
-
+		self.dictionary = {'Area':'AREA', 'Perimeter':'PERIMETER',
+							'Roundness':'ROUNDNESS','Equi-Diameter':'EQUI_DIAMETER',
+							'Convex Area':'CONVEX_AREA', 'Solidity': 'SOLIDITY',
+							'Major Axis':'MAJOR_AXIS_LEN','Minor Axis': 'MINOR_AXIS_LEN',
+							'Eccentricity':'ECCENTRICITY', 'Mean Pixel Intensity':'MEAN_PIXEL_DEN',
+							'Max Pixel Intensity':'MAX_PIXEL_DEN'
+							}
 		featureList = ['Area', 'Perimeter', 'Roundness', 'Equi-Diameter', 
 						'Convex Area', 'Solidity', 'Major Axis', 'Minor Axis',
 						'Eccentricity', 'Mean Pixel Intensity', 'Max Pixel Intensity']
@@ -233,7 +239,8 @@ class AppFrame(wx.Frame):
 			print self.feature2.rangeValue[key].sc.GetValue()
 		#start the kmean process
 		self.displayPanel
-		datalist = getFeatures('Feature5', 'Feature6')
+		datalist = getFeatures(self.dictionary[featureList[0]],
+					 self.dictionary[featureList[1]])
 		print datalist
 		self.cluster_kmeans(datalist, int(k), isShowUpdate)
 
