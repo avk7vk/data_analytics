@@ -133,14 +133,14 @@ class AppFrame(wx.Frame):
 		self.toolbar.update()
 		self.sidePanel = wx.Panel(self)
 
-		featureList = ['area', 'perimeter', 'texture1', 'eccentricity', 
-						'Feature5', 'Feature6', 'feature7', 'feature8',
-						'feature9', 'feature10']
+		featureList = ['Area', 'Perimeter', 'Roundness', 'Equi-Diameter', 
+						'Convex Area', 'Solidity', 'Major Axis', 'Minor Axis',
+						'Eccentricity', 'Mean Pixel Intensity', 'Max Pixel Intensity']
 
 		self.featuresPanel = wx.Panel(self.sidePanel, -1)
 		box = wx.StaticBox(self.featuresPanel, -1, 'Features')
 		self.subPanel = wx.Panel(self.featuresPanel, -1)
-		sizer = wx.GridSizer(rows = 5, cols = 2)
+		sizer = wx.GridSizer(rows = 6, cols = 2)
 
 		global featureCB
 
@@ -233,9 +233,9 @@ class AppFrame(wx.Frame):
 			print self.feature2.rangeValue[key].sc.GetValue()
 		#start the kmean process
 		self.displayPanel
-		datalist = getFeatures(featureList[0], featureList[1])
+		datalist = getFeatures('Feature5', 'Feature6')
 		print datalist
-		self.cluster_kmeans(datalist, int(k))
+		self.cluster_kmeans(datalist, int(k), isShowUpdate)
 
 	def init_plot(self,data,k):
 		x = array([d[0] for d in data])
@@ -266,14 +266,16 @@ class AppFrame(wx.Frame):
 		#plotThread.init_plot(data,k)
 		#plotThread.start()
 		self.init_plot(data, k)
-		time.sleep(1)
+		#time.sleep(1)
 		while not array_equal(lastCentroids,centroids) and i < 10:
 			i+=1
 			lastCentroids = vstack(list(centroids)[:])
 			centroids,_ = kmeans2(data, lastCentroids, iter=1, thresh=1e-05, minit='matrix')
 			clusterIds,_ = vq(data,centroids)
-			self.redraw(data,centroids, clusterIds, k)
-			time.sleep(1)   
+			if animation:
+				self.redraw(data,centroids, clusterIds, k)
+			#time.sleep(1)
+		self.redraw(data,centroids, clusterIds, k)
 		print i
 		print centroids
 		#plotThread.join()
