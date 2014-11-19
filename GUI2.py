@@ -22,6 +22,10 @@ import wx.lib.colourselect as cs
 import wx.lib.filebrowsebutton as filebrowse
 import cv2
 import re
+import OpticsClusterArea as OP
+from itertools import *
+import AutomaticClustering as AutoC
+import sqlite3 as lite
 
 class DisplayPanel(wx.Panel):
 	def __init__(self, *args, **kw):
@@ -397,7 +401,6 @@ class AppFrame(wx.Frame):
 		print 'Point Picked:', zip(xdata[ind], ydata[ind])
 		
 	def startProcess(self, event):
-		self.buttonGenerate.Enable(False)
 		print 'in kmeans'
 		featureList =[]
 		isShowUpdate = False
@@ -426,12 +429,11 @@ class AppFrame(wx.Frame):
 			print self.feature1.rangeValue[key].sc.GetValue()
 			print self.feature2.rangeValue[key].sc.GetValue()
 
-
+		print self.filebrowser.GetValue()
+		self.filename = self.filebrowser.GetValue().split('/')[-1].split('.')[0]
+		self.fullFilename = self.filebrowser.GetValue()
 		if isKmeans:	
 			#start the kmean process
-			print self.filebrowser.GetValue()
-			self.filename = self.filebrowser.GetValue().split('/')[-1].split('.')[0]
-			self.fullFilename = self.filebrowser.GetValue()
 			self.k = int(k)
 			if not 'Mean Pixel Intensity' in featureList:
 				print self.filename
@@ -452,7 +454,6 @@ class AppFrame(wx.Frame):
 				time.sleep(1)
 				if not self.animation:
 					self.cluster_kmeans(datalist, self.k, False)
-					self.buttonGenerate.Enable(True)
 				else:
 					self.centroids = self.init_cluster()
 					self.iterTimer = 0
@@ -462,8 +463,96 @@ class AppFrame(wx.Frame):
 				self.pixel_kmeans()
 		elif isOptics:
 			print 'Calling OPTICS'
+			self.gen_optic_cluster(featureList[0], featureList[1])
 		else:
 			print 'Select an algorithm'
+	def gen_optic_cluster(self, f1, f2):
+		# generate some spatial data with varying densities
+		np.random.seed(0)
+		con = getConnBaseDB()
+		X = []
+		cur = con.cursor()
+		stuple = (self.filename,)
+		cur.execute("SELECT "+self.dictionary[f1]+", "+self.dictionary[f2]+" FROM Features WHERE IMAGE_NAME = '%s'" % stuple)
+		rows = cur.fetchall()
+		for row in rows:
+			X.append([row[0], row[1]])
+		print len(X)
+		#plot scatterplot of points
+		X = np.asarray(X)
+		self.data = X
+		#fig = plt.figure()
+		#ax = fig.add_subplot(111)
+		self.axes.clear()
+		self.xlabel = f1
+		self.ylabel = f2
+		self.axes.set_xlabel(self.xlabel)
+		self.axes.set_ylabel(self.ylabel)
+		self.axes.set_title('Intial scatter plot before clustering')
+		pylab.setp(self.axes.get_xticklabels(), fontsize=8)
+		pylab.setp(self.axes.get_yticklabels(), fontsize=8)
+		self.axes.plot(X[:,0], X[:,1], 'bo')
+		self.canvas.draw()
+		#plt.savefig('Graph.png', dpi=None, facecolor='w', edgecolor='w',
+		#	orientation='portrait', papertype=None, format=None,
+		#	transparent=False, bbox_inches=None, pad_inches=0.1)
+		#plt.show()
+
+
+
+		#run the OPTICS algorithm on the points, using a smoothing value (0 = no smoothing)
+		RD, CD, order = OP.optics(X,9)
+
+		RPlot = []
+		RPoints = []
+			
+		for item in order:
+				RPlot.append(RD[item]) #Reachability Plot
+				RPoints.append([X[item][0],X[item][1]]) #points in their order determined by OPTICS
+
+		#hierarchically cluster the data
+		rootNode = AutoC.automaticCluster(RPlot, RPoints)
+
+		#print Tree (DFS)
+		#AutoC.printTree(rootNode, 0)
+
+		#graph reachability plot and tree
+		#AutoC.graphTree(rootNode, RPlot)
+
+		#array of the TreeNode objects, position in the array is the TreeNode's level in the tree
+		array = AutoC.getArray(rootNode, 0, [0])
+
+		#get only the leaves of the tree
+		leaves = AutoC.getLeaves(rootNode, [])
+		print 'leaves length = ',len(leaves)
+		#graph the points and the leaf clusters that have been found by OPTICS
+		#fig = plt.figure()
+		#ax = fig.add_subplot(111)
+		self.axes.clear()
+		self.xlabel = f1
+		self.ylabel = f2
+		self.axes.set_xlabel(self.xlabel)
+		self.axes.set_ylabel(self.ylabel)
+		self.axes.set_title('Final clusters formed')
+		pylab.setp(self.axes.get_xticklabels(), fontsize=8)
+		pylab.setp(self.axes.get_yticklabels(), fontsize=8)
+		self.axes.plot(X[:,0], X[:,1], 'yo')
+		#colors = cycle('gmkrcbgrcmk')
+		colors = ['r','g','b']
+		colors.extend([(random.random(), 
+			random.random(), random.random()) for i in range(len(leaves)-3)])
+		for item, c in zip(leaves, colors):
+				node = []
+				for v in range(item.start,item.end):
+					node.append(RPoints[v])
+				node = np.array(node)
+				self.axes.plot(node[:,0],node[:,1], color=c,marker='o',linestyle='None',picker=5)
+		self.canvas.draw()
+		#plt.savefig('Graph2.png', dpi=None, facecolor='w', edgecolor='w',
+			#orientation='portrait', papertype=None, format=None,
+			#transparent=False, bbox_inches=None, pad_inches=0.1)
+		#plt.show()
+
 	def pixel_kmeans(self, feature1Bound=None,
 						feature2Bound=None,iter=None):
 		random.seed(time.time())
@@ -519,7 +608,6 @@ class AppFrame(wx.Frame):
 				self.redraw_timer.Stop()
 				#self.redraw(self.data,self.centroids, clusterIds, self.k, -1)
 				self.redraw(-1)
-				self.buttonGenerate.Enable(True)
 
 	def init_plot(self,data,k, feature1, feature2):
 		self.axes.clear()
