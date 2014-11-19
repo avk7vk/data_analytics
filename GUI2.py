@@ -94,6 +94,7 @@ class SpinPanel(wx.Panel):
 
 class AppFrame(wx.Frame):
 	def __init__(self):
+		#setBaseDB('dass1.db')
 		initializeBaseDB()
 		def makeSP(name, labels, statictexts = None):
 			panel = wx.Panel(self.sidePanel, -1)
@@ -133,7 +134,11 @@ class AppFrame(wx.Frame):
 		self.redraw_timer = wx.Timer(self)
 		self.Bind(wx.EVT_TIMER, self.on_redraw_timer, self.redraw_timer)
 		self.stopStart = threading.Event()
+		self.data = None
 		self.centroids = None
+		self.clusterIds = None
+		self.colors = None
+		self.k = 0
 		self.iterTimer = 0
 		self.iterations = 15
 		self.sidePanel = wx.Panel(self)
@@ -249,6 +254,9 @@ class AppFrame(wx.Frame):
 		print datalist
 		self.data = vstack([(f1,f2) for (n, f1, f2) in datalist])
 		self.k = int(k)
+		#Intial clusters from selecting points -- start
+		#-------------------
+		#Intial clusters from selecting points -- end
 		self.animation = isShowUpdate
 		self.init_plot(self.data, self.k, featureList[0], featureList[1])
 		time.sleep(1)
@@ -259,23 +267,23 @@ class AppFrame(wx.Frame):
 			self.iterTimer = 0
 			self.redraw_timer.Start(2)
 
-		#self.cluster_kmeans(datalist, int(k), isShowUpdate)
 	def init_cluster(self):
 		centroids,_ = kmeans2(self.data, self.k, iter=1, thresh=1e-05, minit='random')
 		return centroids
 	def timer_kmeans(self):
 		lastCentroids = vstack(list(self.centroids)[:])
 		self.centroids,_ = kmeans2(self.data, lastCentroids, iter=1, thresh=1e-05, minit='matrix')
-		clusterIds,_ = vq(self.data,self.centroids)
-		self.redraw(self.data,self.centroids, clusterIds, self.k, self.iterTimer)
-		return array_equal(lastCentroids,self.centroids),clusterIds
+		self.clusterIds,_ = vq(self.data,self.centroids)
+		self.redraw(self.iterTimer)
+		return array_equal(lastCentroids,self.centroids)
 	def on_redraw_timer(self, event):
 		if self.iterTimer < self.iterations:
-			changed,clusterIds = self.timer_kmeans()
+			changed = self.timer_kmeans()
 			self.iterTimer+=1
 			if self.iterTimer == self.iterations-1 or changed:
 				self.redraw_timer.Stop()
-				self.redraw(self.data,self.centroids, clusterIds, self.k, -1)
+				#self.redraw(self.data,self.centroids, clusterIds, self.k, -1)
+				self.redraw(-1)
 
 	def init_plot(self,data,k, feature1, feature2):
 		self.axes.clear()
@@ -290,8 +298,6 @@ class AppFrame(wx.Frame):
 		self.axes.set_xlabel(self.xlabel)
 		self.axes.set_ylabel(self.ylabel)
 		self.axes.set_title('Intial scatter plot before clustering')
-		#self.axes.set_xbound(-10, 1200)
-		#self.axes.set_ybound(-10, 1200)
 		pylab.setp(self.axes.get_xticklabels(), fontsize=8)
 		pylab.setp(self.axes.get_yticklabels(), fontsize=8)
 		self.axes.plot(x,y,'bo')
@@ -300,34 +306,43 @@ class AppFrame(wx.Frame):
 		self.colors.extend([(random.random(), 
 			random.random(), random.random()) for i in range(k)])
 
-	def cluster_kmeans(self, datalist, k, animation=True, feature1Bound=None,
+	def cluster_kmeans(self, feature1Bound=None,
 						feature2Bound=None,iter=None):
-		data = vstack([(f1,f2) for (n, f1, f2) in datalist])
 		random.seed(time.time())
-		centroids,_ = kmeans2(data, k, iter=1, thresh=1e-05, minit='random')
+		#TODO: If initial centroid not given only
+		self.centroids,_ = kmeans2(self.data, self.k, iter=1, thresh=1e-05, minit='random')
 		lastCentroids = None
-		print centroids
+		print self.centroids
 		print '\n'
 		i = 0
-		#plotThread = Plot()
-		#plotThread.init_plot(data,k)
-		#plotThread.start()
-		#self.init_plot(data, k)
-		#time.sleep(1)
-		while not array_equal(lastCentroids,centroids) and i < self.iterations:
+		while not array_equal(lastCentroids,self.centroids) and i < self.iterations:
 			i+=1
-			lastCentroids = vstack(list(centroids)[:])
-			centroids,_ = kmeans2(data, lastCentroids, iter=1, thresh=1e-05, minit='matrix')
-			clusterIds,_ = vq(data,centroids)
-			if animation:
-				time.sleep(1)
-				self.redraw(data,centroids, clusterIds, k, i)
-			#time.sleep(1)
-		self.redraw(data,centroids, clusterIds, k, -1)
+			lastCentroids = vstack(list(self.centroids)[:])
+			self.centroids,_ = kmeans2(self.data, lastCentroids, iter=1, thresh=1e-05, minit='matrix')
+			self.clusterIds,_ = vq(self.data,self.centroids)
+		self.redraw(-1)
 		print i, self.iterations
-		print centroids
-		#plotThread.join()
+		print self.centroids
 
+	def redraw(self, iteration):
+		 wx.CallAfter(self.redraw_actual, iteration)
+	def redraw_actual(self, iteration):
+		self.axes.clear()
+		self.axes.set_xlabel(self.xlabel)
+		self.axes.set_ylabel(self.ylabel)
+		if iteration == -1:
+			self.axes.set_title('Final clusters formed')
+		else:
+			self.axes.set_title('Clusters during kmeans iteration '+str(iteration))
+		pylab.setp(self.axes.get_xticklabels(), fontsize=8)
+		pylab.setp(self.axes.get_yticklabels(), fontsize=8)
+		for i in range(self.k):
+			self.axes.plot(self.data[self.clusterIds==i,0],self.data[self.clusterIds==i,1],color=self.colors[i],marker='o',linestyle='None')
+			self.axes.plot(self.centroids[i,0],self.centroids[i,1],color=self.colors[i], marker='H',markersize=20.0)
+		for i in range(len(self.data)):  
+			self.axes.plot([self.data[i,0],self.centroids[self.clusterIds[i],0]],[self.data[i,1],self.centroids[self.clusterIds[i],1]], color=self.colors[self.clusterIds[i]])
+		self.canvas.draw()
+'''
 	def redraw(self, data, centroids,clusterIds,k,iteration):
 		 wx.CallAfter(self.redraw_actual, data, centroids,clusterIds,k, iteration)
 	def redraw_actual(self, data, centroids,clusterIds,k, iteration):
@@ -348,7 +363,7 @@ class AppFrame(wx.Frame):
 		for i in range(len(data)):  
 			self.axes.plot([data[i,0],centroids[clusterIds[i],0]],[data[i,1],centroids[clusterIds[i],1]], color=self.colors[clusterIds[i]])
 		self.canvas.draw()
-
+'''
 if __name__ == '__main__':		
 	verbose = 0
 	spinPanels = {}
