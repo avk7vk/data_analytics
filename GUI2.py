@@ -19,6 +19,7 @@ import matplotlib.cm as cm
 import threading
 import sys
 import wx.lib.colourselect as cs
+import wx.lib.filebrowsebutton as filebrowse
 
 
 class DisplayPanel(wx.Panel):
@@ -51,12 +52,16 @@ class OptionsPanel(wx.Panel):
 		s = wx.GridSizer(rows = 1, cols = 2)
 		self.label = wx.StaticText(self, -1, "K-Value : ")
 		self.textBox = wx.TextCtrl(self, -1, "5")
-		s.Add(self.label,0,wx.BOTTOM|wx.LEFT, 2)
+		s.Add(self.label,0,wx.BOTTOM|wx.LEFT|wx.ALIGN_CENTER_VERTICAL, 2)
 		s.Add(self.textBox,0,wx.BOTTOM|wx.LEFT, 2)
 		sizer.Add(s)
-
+		s = wx.GridSizer(rows = 1, cols = 2)
 		self.showUpdates = wx.CheckBox(self, label = "Enable Updates during Iteration")
-		sizer.Add(self.showUpdates, 0, wx.BOTTOM|wx.LEFT, 2)
+		self.chooseCentroid = wx.CheckBox(self,label="Choose Initial Centroids")
+		s.Add(self.showUpdates, 0, wx.BOTTOM|wx.LEFT, 2)
+		s.Add(self.chooseCentroid, 0, wx.BOTTOM|wx.LEFT, 2)
+		sizer.Add(s)
+
 		self.SetSizer(sizer)
 
 		
@@ -115,11 +120,16 @@ class AppFrame(wx.Frame):
 
 		wx.Frame.__init__(self, None, title = "CLUSTERING ALGORITHM")
 
+		#----------------Adding Drawing Panel------------------------
 		self.displayPanel = DisplayPanel(self)
 		self.figure = Figure()
 		self.axes = self.figure.add_subplot(111)
 		self.axes.set_axis_bgcolor('white')
 		self.canvas = Canvas(self.displayPanel, -1, self.figure)
+
+		self.figure.canvas.mpl_connect('button_press_event', self.onGraphClick)
+		self.figure.canvas.mpl_connect('pick_event', self.onNucleiPick)
+
 		sizer = wx.BoxSizer(wx.HORIZONTAL)
 		sizer.Add(self.canvas, 1, wx.EXPAND)
 		self.displayPanel.SetSizer(sizer)
@@ -142,6 +152,11 @@ class AppFrame(wx.Frame):
 		self.iterTimer = 0
 		self.iterations = 15
 		self.sidePanel = wx.Panel(self)
+		self.pointToPick = 0
+
+		#----------------Adding Drawing Panel------------------------
+
+
 		self.dictionary = {'Area':'AREA', 'Perimeter':'PERIMETER',
 							'Roundness':'ROUNDNESS','Equi-Diameter':'EQUI_DIAMETER',
 							'Convex Area':'CONVEX_AREA', 'Solidity': 'SOLIDITY',
@@ -149,14 +164,63 @@ class AppFrame(wx.Frame):
 							'Eccentricity':'ECCENTRICITY', 'Mean Pixel Intensity':'MEAN_PIXEL_DEN',
 							'Max Pixel Intensity':'MAX_PIXEL_DEN'
 							}
+
 		featureList = ['Area', 'Perimeter', 'Roundness', 'Equi-Diameter', 
 						'Convex Area', 'Solidity', 'Major Axis', 'Minor Axis',
-						'Eccentricity', 'Mean Pixel Intensity', 'Max Pixel Intensity']
+						'Eccentricity', 'Mean Pixel Intensity']
+
+
+		#----------------Adding File Open Dialog to Show the tiles Info------------------------
+
+		self.chooseImagePanel = wx.Panel(self.sidePanel, -1)
+		box = wx.StaticBox(self.chooseImagePanel, -1, 'Choose Image')
+		self.subPanel = wx.Panel(self.chooseImagePanel, -1)
+
+		sizer = wx.BoxSizer(wx.VERTICAL)
+		self.filebrowser = filebrowse.FileBrowseButtonWithHistory(
+							self.subPanel, -1, size=(450, -1), changeCallback = self.updateHistory)
+
+		button = wx.Button(self.subPanel, -1, "View Image")
+		button.Bind(wx.EVT_BUTTON, self.viewImage)
+
+		sizer.Add(self.filebrowser,0,wx.EXPAND)
+		sizer.Add(button,0,wx.ALL|wx.RIGHT|wx.ALIGN_RIGHT,5)
+		self.subPanel.SetSizer(sizer)
+
+		sizer = wx.StaticBoxSizer(box, wx.VERTICAL)
+		sizer.Add(self.subPanel)
+		self.chooseImagePanel.SetSizer(sizer)
+
+		#----------------Adding Algorithm Options Info ----------------------- 
+
+		self.algorithmPanel = wx.Panel(self.sidePanel, -1)
+		box = wx.StaticBox(self.algorithmPanel, -1, 'Algorithms')
+		self.subPanel = wx.Panel(self.algorithmPanel, -1)
+		sizer = wx.BoxSizer(wx.HORIZONTAL)
+		
+		self.algorithm1 = wx.RadioButton(self.subPanel, label="K-MEANS", style = wx.RB_GROUP)		
+		self.algorithm2 = wx.RadioButton(self.subPanel, label="OPTICS")
+		self.algorithm1.Bind(wx.EVT_RADIOBUTTON, self.kmeansSelected)
+		self.algorithm2.Bind(wx.EVT_RADIOBUTTON, self.opticsSelected)
+
+		sizer.Add(self.algorithm1 ,0,wx.ALL|wx.RIGHT|wx.ALIGN_LEFT, 5)
+		sizer.Add((1,1),1)
+		sizer.Add((1,1),1)
+		sizer.Add(self.algorithm2 ,1,wx.ALL|wx.RIGHT|wx.ALIGN_RIGHT,5)
+		self.subPanel.SetSizer(sizer)
+
+		sizer = wx.StaticBoxSizer(box, wx.VERTICAL)
+		sizer.Add(self.subPanel)
+		self.algorithmPanel.SetSizer(sizer)
+
+		#----------------Adding Algorithm Options Info ----------------------- 
+
+
 
 		self.featuresPanel = wx.Panel(self.sidePanel, -1)
 		box = wx.StaticBox(self.featuresPanel, -1, 'Features')
 		self.subPanel = wx.Panel(self.featuresPanel, -1)
-		sizer = wx.GridSizer(rows = 6, cols = 2)
+		sizer = wx.GridSizer(rows = 4, cols = 3)
 
 		global featureCB
 
@@ -181,20 +245,41 @@ class AppFrame(wx.Frame):
 
 		self.optionPanel = OptionsPanel(self.sidePanel, self.displayPanel)
 
+		buttonStart = wx.Button(self.sidePanel, -1, "Start")
+		buttonStart.Bind(wx.EVT_BUTTON, self.startProcess)
 
-		button = wx.Button(self.sidePanel, -1, "START")
-		button.Bind(wx.EVT_BUTTON, self.startProcess)
-
-		buttonClose = wx.Button(self.sidePanel, -1, "CLOSE")
+		buttonClose = wx.Button(self.sidePanel, -1, "Close")
 		buttonClose.Bind(wx.EVT_BUTTON, self.stopProcess)
 
+		self.buttonGenerate = wx.Button(self.sidePanel, -1, "Generate Image")
+		self.buttonGenerate.Bind(wx.EVT_BUTTON, self.generateImage)
+		self.buttonGenerate.Enable(False)
+
+		buttonReset = wx.Button(self.sidePanel, -1, "Reset")
+		buttonReset.Bind(wx.EVT_BUTTON, self.resetProcess)
+
+		
+
 		panelSizer = wx.BoxSizer(wx.VERTICAL)
+		panelSizer.Add(self.chooseImagePanel, 0, wx.EXPAND|wx.TOP|wx.LEFT|wx.RIGHT, 5)
 		panelSizer.Add(self.featuresPanel, 0, wx.EXPAND|wx.TOP|wx.LEFT|wx.RIGHT, 5)
 		panelSizer.Add(self.feature1, 0, wx.EXPAND|wx.TOP|wx.LEFT|wx.RIGHT, 5)
 		panelSizer.Add(self.feature2, 0, wx.EXPAND|wx.TOP|wx.LEFT|wx.RIGHT, 5)
+		panelSizer.Add(self.algorithmPanel, 0, wx.EXPAND|wx.TOP|wx.LEFT|wx.RIGHT, 5)
 		panelSizer.Add(self.optionPanel, 0, wx.EXPAND|wx.TOP|wx.LEFT|wx.RIGHT, 5)
-		panelSizer.Add(button, 0, wx.EXPAND|wx.TOP|wx.LEFT|wx.RIGHT, 5)
-		panelSizer.Add(buttonClose, 0, wx.EXPAND|wx.TOP|wx.LEFT|wx.RIGHT, 5)
+
+		sizer = wx.BoxSizer(wx.HORIZONTAL)
+		sizer.Add(buttonStart ,0,wx.ALL|wx.RIGHT|wx.ALIGN_LEFT, 5)
+		# sizer.Add((1,1),1)
+		sizer.Add(self.buttonGenerate ,0,wx.ALL|wx.RIGHT|wx.ALIGN_CENTER,5)
+		# sizer.Add((1,1),1)
+		sizer.Add(buttonReset,0,wx.ALL|wx.RIGHT|wx.ALIGN_CENTER,5)
+		
+		sizer.Add(buttonClose ,0,wx.ALL|wx.RIGHT|wx.ALIGN_RIGHT,5)
+
+		panelSizer.Add(sizer,0, wx.EXPAND|wx.TOP|wx.LEFT|wx.RIGHT, 5)
+		# panelSizer.Add(buttonStart, 0, wx.EXPAND|wx.TOP|wx.LEFT|wx.RIGHT, 5)
+		# panelSizer.Add(buttonClose, 0, wx.EXPAND|wx.TOP|wx.LEFT|wx.RIGHT, 5)
 		self.sidePanel.SetSizer(panelSizer)
 
 		mainSizer = wx.BoxSizer(wx.HORIZONTAL)
@@ -217,22 +302,77 @@ class AppFrame(wx.Frame):
 		self.SetSize((w,h))
 		self.Show()
 
+	
 	def OnSpinback(self, name, value):
 		if verbose:
 			print 'On Spin Back', name, value
-
 
 	def stopProcess(self,event):
 		closeConnBaseDB()
 		sys.exit()
 
+	def resetProcess(self,event):
+		self.axes.clear()
+		self.canvas.draw()
 
+	def updateHistory(self, event):
+		value = self.filebrowser.GetValue()
+		print 'Update History',value
+		if not value:
+			return
+		history = self.filebrowser.GetHistory()
+		if value not in history:
+			history.append(value)
+			self.filebrowser.SetHistory(history)
+			self.filebrowser.GetHistoryControl().SetStringSelection(value)
+
+	def viewImage(self,event):
+		print 'View Image'
+		imageFile = self.filebrowser.GetValue()
+		print imageFile
+		win = wx.Frame(None, title = imageFile, size=(500,500), 
+						style = wx.DEFAULT_FRAME_STYLE ^wx.RESIZE_BORDER) 
+		ipanel = wx.Panel(win, -1)
+
+		image = wx.ImageFromBitmap(wx.Bitmap(imageFile))
+		image = image.Scale(500,500, wx.IMAGE_QUALITY_HIGH)
+		bitmap = wx.BitmapFromImage(image)
+
+		control = wx.StaticBitmap(ipanel,-1,bitmap)
+		control.SetPosition((10,10))
+		win.Show(True)
+
+	def generateImage(self,event):
+		print 'generate Image'
+
+	def opticsSelected(self,event):
+		self.optionPanel.showUpdates.Enable(False)
+		self.optionPanel.chooseCentroid.Enable(False)
+
+	def kmeansSelected(self,event):
+		self.optionPanel.showUpdates.Enable(True)
+		self.optionPanel.chooseCentroid.Enable(True)
+
+	def onGraphClick(self,event):
+		print 'button=%d, x=%d, y=%d, xdata=%f, ydata=%f'%(
+			event.button, event.x, event.y, event.xdata, event.ydata)
+
+	def onNucleiPick(self,event):
+		thisline = event.artist
+		xdata = thisline.get_xdata()
+		ydata = thisline.get_ydata()
+		ind = event.ind
+		print 'Point Picked:', zip(xdata[ind], ydata[ind])
+		
 	def startProcess(self, event):
 		print 'in kmeans'
 		featureList =[]
 		isShowUpdate = False
 		k = self.optionPanel.textBox.GetValue()
 		isShowUpdate = self.optionPanel.showUpdates.GetValue()
+		isKmeans = self.algorithm1.GetValue()
+		isOptics = self.algorithm2.GetValue()
+		isPickCentroids = self.optionPanel.chooseCentroid.GetValue()
 
 		print 'spin_panels', spinPanels.keys()
 		for key in featureCB.keys():
@@ -240,32 +380,48 @@ class AppFrame(wx.Frame):
 				featureList.append(key)
 				print featureCB[key].GetValue()
 
-		print featureList
-		print k
-		print isShowUpdate
+		print "Feature List = ",featureList
+		print "k-value = ",k
+		print "Show Update = ",isShowUpdate
+		print "Kmeans Selected= ",isKmeans
+		print "OPTICS Selected= ",self.algorithm2.GetValue()
+
+		if isPickCentroids:
+			self.pointToPick = self.k
 
 		for key in spinPanels.keys():
 			print self.feature1.rangeValue[key].sc.GetValue()
 			print self.feature2.rangeValue[key].sc.GetValue()
-		#start the kmean process
-		self.displayPanel
-		datalist = getFeatures(self.dictionary[featureList[0]],
-					 self.dictionary[featureList[1]])
-		print datalist
-		self.data = vstack([(f1,f2) for (n, f1, f2) in datalist])
-		self.k = int(k)
-		#Intial clusters from selecting points -- start
-		#-------------------
-		#Intial clusters from selecting points -- end
-		self.animation = isShowUpdate
-		self.init_plot(self.data, self.k, featureList[0], featureList[1])
-		time.sleep(1)
-		if not self.animation:
-			self.cluster_kmeans(datalist, self.k, False)
+
+
+		if isKmeans:	
+			#start the kmean process
+			datalist = getFeatures(self.dictionary[featureList[0]],
+						 self.dictionary[featureList[1]])
+			# print datalist
+			self.data = vstack([(f1,f2) for (n, f1, f2) in datalist])
+			self.k = int(k)
+			#Intial clusters from selecting points -- start
+			if isPickCentroids:
+				print 'Picking Centroids'
+				wx.MessageBox("Please provide all centroids")
+				dialog.Destroy()
+
+
+			#Intial clusters from selecting points -- end
+			self.animation = isShowUpdate
+			self.init_plot(self.data, self.k, featureList[0], featureList[1])
+			time.sleep(1)
+			if not self.animation:
+				self.cluster_kmeans(datalist, self.k, False)
+			else:
+				self.centroids = self.init_cluster()
+				self.iterTimer = 0
+				self.redraw_timer.Start(2)
+		elif isOptics:
+			print 'Calling OPTICS'
 		else:
-			self.centroids = self.init_cluster()
-			self.iterTimer = 0
-			self.redraw_timer.Start(2)
+			print 'Select an algorithm'
 
 	def init_cluster(self):
 		centroids,_ = kmeans2(self.data, self.k, iter=1, thresh=1e-05, minit='random')
@@ -337,10 +493,10 @@ class AppFrame(wx.Frame):
 		pylab.setp(self.axes.get_xticklabels(), fontsize=8)
 		pylab.setp(self.axes.get_yticklabels(), fontsize=8)
 		for i in range(self.k):
-			self.axes.plot(self.data[self.clusterIds==i,0],self.data[self.clusterIds==i,1],color=self.colors[i],marker='o',linestyle='None')
-			self.axes.plot(self.centroids[i,0],self.centroids[i,1],color=self.colors[i], marker='H',markersize=20.0)
+			self.axes.plot(self.data[self.clusterIds==i,0],self.data[self.clusterIds==i,1],color=self.colors[i],marker='o',linestyle='None',picker=5)
+			self.axes.plot(self.centroids[i,0],self.centroids[i,1],color=self.colors[i], marker='H',markersize=20.0,picker=5)
 		for i in range(len(self.data)):  
-			self.axes.plot([self.data[i,0],self.centroids[self.clusterIds[i],0]],[self.data[i,1],self.centroids[self.clusterIds[i],1]], color=self.colors[self.clusterIds[i]])
+			self.axes.plot([self.data[i,0],self.centroids[self.clusterIds[i],0]],[self.data[i,1],self.centroids[self.clusterIds[i],1]], color=self.colors[self.clusterIds[i]],picker=5)
 		self.canvas.draw()
 '''
 	def redraw(self, data, centroids,clusterIds,k,iteration):
