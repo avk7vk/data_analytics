@@ -29,10 +29,10 @@ def initializeBaseDB():
 	#Check if there is an already existing DB
 	dbconn = sqlite3.connect(basedb)
 	cursor = dbconn.cursor()
-	create = 'CREATE TABLE IF NOT EXISTS Features (NUCLEI TEXT,\
+	create = 'CREATE TABLE IF NOT EXISTS Features (IMAGE_NAME TEXT,NUCLEI INT,\
 			  AREA REAL ,PERIMETER REAL, ROUNDNESS REAL,EQUI_DIAMETER REAL, CONVEX_AREA REAL,\
 			   SOLIDITY REAL, MAJOR_AXIS_LEN REAL, MINOR_AXIS_LEN REAL,ECCENTRICITY REAL, BOUNDARY_VALS TEXT,MEAN_PIXEL_DEN TEXT,\
-			   MAX_PIXEL_DEN TEXT,MIN_PIXEL_DEN TEXT)'
+			   MAX_PIXEL_DEN TEXT,MIN_PIXEL_DEN TEXT,PRIMARY KEY(IMAGE_NAME,NUCLEI))'
 	cursor.execute(create)
 	dbconn.commit()
 	#Make all the required settings and give a handle to evaluate function
@@ -42,18 +42,19 @@ def insertData(datalist, override=True):
 	conn = getConnBaseDB()
 	if conn == None:
 		print "Looks like DB is not initialized."
-	stuple = (datalist[0],)
+	stuple = (datalist[0],datalist[1],)
 	cursor = conn.cursor()
-	cursor.execute("SELECT * FROM Features WHERE NUCLEI = '%s'" % stuple)
+	cursor.execute("SELECT * FROM Features WHERE IMAGE_NAME = '%s' AND NUCLEI = '%d'" % stuple)
 	row = cursor.fetchall()
 	datatuple = tuple(datalist)
 	if len(row) == 0:
-		cursor.execute("INSERT INTO Features VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)", datatuple)
+		cursor.execute("INSERT INTO Features VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", datatuple)
 		conn.commit()
-		print "Added entry",datatuple, "to database"
+		#print "Added entry",datatuple, "to database"
 	else:
+		print "Just skip ! Record already present!"
 		if override:
-			cursor.execute("DELETE FROM Features WHERE NUCLEI = '%s'" % stuple)
+			cursor.execute("DELETE FROM Features WHERE IMAGE_NAME = '%s' AND NUCLEI = '%d'" % stuple)
 			cursor.execute("INSERT INTO Features VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)", datatuple)
 			conn.commit()
 def getFeatures(feature1, feature2):
