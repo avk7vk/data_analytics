@@ -20,7 +20,8 @@ import threading
 import sys
 import wx.lib.colourselect as cs
 import wx.lib.filebrowsebutton as filebrowse
-
+import cv2
+import re
 
 class DisplayPanel(wx.Panel):
 	def __init__(self, *args, **kw):
@@ -99,7 +100,7 @@ class SpinPanel(wx.Panel):
 
 class AppFrame(wx.Frame):
 	def __init__(self):
-		#setBaseDB('dass1.db')
+		setBaseDB('dass1.db')
 		initializeBaseDB()
 		def makeSP(name, labels, statictexts = None):
 			panel = wx.Panel(self.sidePanel, -1)
@@ -344,6 +345,37 @@ class AppFrame(wx.Frame):
 
 	def generateImage(self,event):
 		print 'generate Image'
+		self.generate_image()
+
+	def generate_image(self):
+	#Red,Green,Blue,Marooon,Cyan,Yellow,Magenta,Purple,Navy,Gray(BGR format NOT RGB)
+		#colors = {0:(0,0,255),1:(0,255,0),2:(255,0,0),3:(0,0,128),4:(255,255,0),5:(0,255,255),6:(255,0,255),7:(128,0,128)
+		#		,8:(128,0,0),9:(128,128,128)}
+		colors = [(0,0,255), (0,255,0), (255,0,0)]
+		for i in range(self.k):
+			colors.append((random.choice(range(256)), random.choice(range(256)),random.choice(range(256))))
+		conn = getConnBaseDB()
+		#Query DB to get boundary values for this image.
+		c = conn.cursor()
+		c.execute("SELECT BOUNDARY_VALS FROM Features WHERE IMAGE_NAME = '%s'" %self.filename)
+		rows = c.fetchall()
+		contour_list = []
+		for row in rows:
+			boundary_vals = row[0].strip().split(';')
+			boundary_vals.pop()
+			boundary_vals = [[int(float(n)) for n in i.split(',')] for i in boundary_vals]
+			contr = np.array(boundary_vals)
+			contour_list.append(contr)
+		im = cv2.imread(self.fullFilename)
+		for index,i in enumerate(self.clusterIds):
+			cv2.drawContours(im,contour_list,index,colors[i],-1)
+
+		outputfile = "Output_"+self.filename+"_clustered_"+str(int(time.time()))+".tif"
+		cv2.imwrite(outputfile,im);
+		cv2.imshow('image',im)
+		cv2.waitKey()
+		#closeConnBaseDB()
+		#return(im)
 
 	def opticsSelected(self,event):
 		self.optionPanel.showUpdates.Enable(False)
@@ -365,6 +397,7 @@ class AppFrame(wx.Frame):
 		print 'Point Picked:', zip(xdata[ind], ydata[ind])
 		
 	def startProcess(self, event):
+		self.buttonGenerate.Enable(False)
 		print 'in kmeans'
 		featureList =[]
 		isShowUpdate = False
@@ -396,33 +429,79 @@ class AppFrame(wx.Frame):
 
 		if isKmeans:	
 			#start the kmean process
-			datalist = getFeatures(self.dictionary[featureList[0]],
-						 self.dictionary[featureList[1]])
-			# print datalist
-			self.data = vstack([(f1,f2) for (n, f1, f2) in datalist])
+			print self.filebrowser.GetValue()
+			self.filename = self.filebrowser.GetValue().split('/')[-1].split('.')[0]
+			self.fullFilename = self.filebrowser.GetValue()
 			self.k = int(k)
-			#Intial clusters from selecting points -- start
-			if isPickCentroids:
-				print 'Picking Centroids'
-				wx.MessageBox("Please provide all centroids")
-				dialog.Destroy()
+			if not 'Mean Pixel Intensity' in featureList:
+				print self.filename
+				datalist = getFeatures(self.filename, self.dictionary[featureList[0]],
+							 self.dictionary[featureList[1]])
+				#print datalist
+				self.data = vstack([(f1,f2) for (f,n, f1, f2) in datalist])
+				#Intial clusters from selecting points -- start
+				if isPickCentroids:
+					print 'Picking Centroids'
+					wx.MessageBox("Please provide all centroids")
+					dialog.Destroy()
 
 
-			#Intial clusters from selecting points -- end
-			self.animation = isShowUpdate
-			self.init_plot(self.data, self.k, featureList[0], featureList[1])
-			time.sleep(1)
-			if not self.animation:
-				self.cluster_kmeans(datalist, self.k, False)
+				#Intial clusters from selecting points -- end
+				self.animation = isShowUpdate
+				self.init_plot(self.data, self.k, featureList[0], featureList[1])
+				time.sleep(1)
+				if not self.animation:
+					self.cluster_kmeans(datalist, self.k, False)
+					self.buttonGenerate.Enable(True)
+				else:
+					self.centroids = self.init_cluster()
+					self.iterTimer = 0
+					self.redraw_timer.Start(2)
 			else:
-				self.centroids = self.init_cluster()
-				self.iterTimer = 0
-				self.redraw_timer.Start(2)
+				self.data = vstack(self.helper_mean())
+				self.pixel_kmeans()
 		elif isOptics:
 			print 'Calling OPTICS'
 		else:
 			print 'Select an algorithm'
-
+	def pixel_kmeans(self, feature1Bound=None,
+						feature2Bound=None,iter=None):
+		random.seed(time.time())
+		self.centroids,_ = kmeans2(self.data, self.k)
+		print len(self.centroids)
+		self.clusterIds,_ = vq(self.data,self.centroids)
+		sets = set(self.clusterIds)
+		print sets
+		self.generate_image()
+		#TODO: If initial centroid not given only
+		#self.centroids,_ = kmeans2(self.data, self.k, thresh=1e-05, minit='random')
+		#lastCentroids = None
+		#print self.centroids
+		#print '\n'
+		#i = 0
+		#while not array_equal(lastCentroids,self.centroids) and i < self.iterations:
+		#	i+=1
+		#	lastCentroids = vstack(list(self.centroids)[:])
+		#	self.centroids,_ = kmeans2(self.data, lastCentroids, iter=1, thresh=1e-05, minit='matrix')
+		#	self.clusterIds,_ = vq(self.data,self.centroids)
+		#self.redraw(-1)
+		#print i, self.iterations
+		#print self.centroids
+	def helper_mean(self):
+		conn = getConnBaseDB()
+		c = conn.cursor()
+		c.execute("SELECT MEAN_PIXEL_DEN FROM Features WHERE IMAGE_NAME = '%s'" %self.filename)
+		rows = c.fetchall()
+		data_list = []
+		for row in rows:
+			item = str(row[0])
+			match = re.search(r'\((.*)\)',item)
+			if match:
+				data = match.group(1).split(',')
+				data_list.append(data)
+		data_list = [[float(j) for j in i ] for i in data_list]			
+		#dbsetup.closeConnBaseDB()
+		return data_list
 	def init_cluster(self):
 		centroids,_ = kmeans2(self.data, self.k, iter=1, thresh=1e-05, minit='random')
 		return centroids
@@ -440,6 +519,7 @@ class AppFrame(wx.Frame):
 				self.redraw_timer.Stop()
 				#self.redraw(self.data,self.centroids, clusterIds, self.k, -1)
 				self.redraw(-1)
+				self.buttonGenerate.Enable(True)
 
 	def init_plot(self,data,k, feature1, feature2):
 		self.axes.clear()
