@@ -40,7 +40,7 @@ def gen_optic_cluster(f1, f2):
 	fig = plt.figure()
 	ax = fig.add_subplot(111)
 
-	ax.plot(X[:,0], X[:,1], 'b.', ms=2)
+	ax.plot(X[:,0], X[:,1], 'bo')
 
 	plt.savefig('Graph.png', dpi=None, facecolor='w', edgecolor='w',
     	orientation='portrait', papertype=None, format=None,
@@ -50,7 +50,7 @@ def gen_optic_cluster(f1, f2):
 
 
 	#run the OPTICS algorithm on the points, using a smoothing value (0 = no smoothing)
-	RD, CD, order = OP.optics(X,9)
+	RD, CD, order = OP.optics(X,100)
 
 	RPlot = []
 	RPoints = []
@@ -73,23 +73,23 @@ def gen_optic_cluster(f1, f2):
 
 	#get only the leaves of the tree
 	leaves = AutoC.getLeaves(rootNode, [])
-
+	print 'leaves length = ',len(leaves)
 	#graph the points and the leaf clusters that have been found by OPTICS
 	fig = plt.figure()
 	ax = fig.add_subplot(111)
 
-	ax.plot(X[:,0], X[:,1], 'y.')
+	ax.plot(X[:,0], X[:,1], 'yo')
 	colors = cycle('gmkrcbgrcmk')
 	for item, c in zip(leaves, colors):
     		node = []
     		for v in range(item.start,item.end):
         		node.append(RPoints[v])
     		node = np.array(node)
-    		ax.plot(node[:,0],node[:,1], c+'o', ms=5)
+    		ax.plot(node[:,0],node[:,1], c+'o')
 
 	#plt.savefig('Graph2.png', dpi=None, facecolor='w', edgecolor='w',
     	#orientation='portrait', papertype=None, format=None,
     	#transparent=False, bbox_inches=None, pad_inches=0.1)
-	#plt.show()
+	plt.show()
 if __name__ == '__main__':
-	gen_optic_cluster(sys.argv[1], sys.argv[2], sys.argv[3])
+	gen_optic_cluster(sys.argv[1], sys.argv[2])

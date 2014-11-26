@@ -280,6 +280,7 @@ class AppFrame(wx.Frame):
 			centroids,_ = kmeans2(data, lastCentroids, iter=1, thresh=1e-05, minit='matrix')
 			clusterIds,_ = vq(data,centroids)
 			if animation:
+				time.sleep(1)
 				self.redraw(data,centroids, clusterIds, k)
 			#time.sleep(1)
 		self.redraw(data,centroids, clusterIds, k)

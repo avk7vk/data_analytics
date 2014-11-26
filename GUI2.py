@@ -48,9 +48,10 @@ class DisplayPanel(wx.Panel):
 
 class OptionsPanel(wx.Panel):
 
-	def __init__(self, parent, display):
+	def __init__(self, mainFrame,parent, display):
 		wx.Panel.__init__(self, parent)
 		self.display = display
+		self.mainFrame = mainFrame
 
 		sizer = wx.StaticBoxSizer(wx.StaticBox(self, label = "Options"),
 									wx.VERTICAL)
@@ -63,12 +64,14 @@ class OptionsPanel(wx.Panel):
 		s = wx.GridSizer(rows = 1, cols = 2)
 		self.showUpdates = wx.CheckBox(self, label = "Enable Updates during Iteration")
 		self.chooseCentroid = wx.CheckBox(self,label="Choose Initial Centroids")
+		self.chooseCentroid.Bind(wx.EVT_CHECKBOX, self.pkCentroid)
 		s.Add(self.showUpdates, 0, wx.BOTTOM|wx.LEFT, 2)
 		s.Add(self.chooseCentroid, 0, wx.BOTTOM|wx.LEFT, 2)
 		sizer.Add(s)
-
 		self.SetSizer(sizer)
 
+	def pkCentroid(self, event):
+		self.mainFrame.pickInputCentroids(self.chooseCentroid.IsChecked())
 		
 class SpinPanel(wx.Panel):
 	def __init__(self, parent, name, minValue, value, maxValue, callback):
@@ -150,7 +153,7 @@ class AppFrame(wx.Frame):
 		self.Bind(wx.EVT_TIMER, self.on_redraw_timer, self.redraw_timer)
 		self.stopStart = threading.Event()
 		self.data = None
-		self.centroids = None
+		self.centroids = []
 		self.clusterIds = None
 		self.colors = None
 		self.k = 0
@@ -158,7 +161,8 @@ class AppFrame(wx.Frame):
 		self.iterations = 15
 		self.sidePanel = wx.Panel(self)
 		self.pointToPick = 0
-
+		self.selectedFeaturesCount = 0
+		self.isPickCentroids = False
 		#----------------Adding Drawing Panel------------------------
 
 
@@ -231,6 +235,7 @@ class AppFrame(wx.Frame):
 
 		for feature in featureList:
 			cb = wx.CheckBox(self.subPanel, label=feature)
+			cb.Bind(wx.EVT_CHECKBOX, self.featuresSelected)
 			featureCB[feature] = cb
 			sizer.Add(cb, 0, wx.BOTTOM|wx.LEFT, 2)
 		
@@ -242,26 +247,33 @@ class AppFrame(wx.Frame):
 
 		self.feature1 = makeSP('FEATURE 1 RANGES',
 							  (('Minimum', 1, 1, 3600),
-							   ('Maximum', 1, 3600, 3600)))
+								('Maximum', 1, 3600, 3600)))
 
 		self.feature2 = makeSP('FEATURE 2 RANGES',
 							  (('Minimum', 1, 1, 3600),
-							   ('Maximum', 1, 3600, 3600)))
+								('Maximum', 1, 3600, 3600)))
 
-		self.optionPanel = OptionsPanel(self.sidePanel, self.displayPanel)
+		self.optionPanel = OptionsPanel(self,self.sidePanel, self.displayPanel)
 
-		buttonStart = wx.Button(self.sidePanel, -1, "Start")
-		buttonStart.Bind(wx.EVT_BUTTON, self.startProcess)
+		self.buttonStart = wx.Button(self.sidePanel, -1, "Start")
+		self.buttonStart.Bind(wx.EVT_BUTTON, self.startProcess)
 
 		buttonClose = wx.Button(self.sidePanel, -1, "Close")
 		buttonClose.Bind(wx.EVT_BUTTON, self.stopProcess)
 
 		self.buttonGenerate = wx.Button(self.sidePanel, -1, "Generate Image")
 		self.buttonGenerate.Bind(wx.EVT_BUTTON, self.generateImage)
-		self.buttonGenerate.Enable(False)
+		self.buttonReset = wx.Button(self.sidePanel, -1, "Show Image/Reset")
+		self.buttonReset.Bind(wx.EVT_BUTTON, self.resetProcess)
 
-		buttonReset = wx.Button(self.sidePanel, -1, "Reset")
-		buttonReset.Bind(wx.EVT_BUTTON, self.resetProcess)
+		#self.featuresPanel.Enable(False)
+		self.feature1.Enable(False)
+		self.feature2.Enable(False)
+		self.buttonStart.Enable(False)
+		self.buttonGenerate.Enable(False)
+		self.algorithmPanel.Enable(False)
+		self.optionPanel.Enable(False)
+		self.buttonReset.Enable(False)
 
 		
 
@@ -274,11 +286,11 @@ class AppFrame(wx.Frame):
 		panelSizer.Add(self.optionPanel, 0, wx.EXPAND|wx.TOP|wx.LEFT|wx.RIGHT, 5)
 
 		sizer = wx.BoxSizer(wx.HORIZONTAL)
-		sizer.Add(buttonStart ,0,wx.ALL|wx.RIGHT|wx.ALIGN_LEFT, 5)
+		sizer.Add(self.buttonStart ,0,wx.ALL|wx.RIGHT|wx.ALIGN_LEFT, 5)
 		# sizer.Add((1,1),1)
 		sizer.Add(self.buttonGenerate ,0,wx.ALL|wx.RIGHT|wx.ALIGN_CENTER,5)
 		# sizer.Add((1,1),1)
-		sizer.Add(buttonReset,0,wx.ALL|wx.RIGHT|wx.ALIGN_CENTER,5)
+		sizer.Add(self.buttonReset,0,wx.ALL|wx.RIGHT|wx.ALIGN_CENTER,5)
 		
 		sizer.Add(buttonClose ,0,wx.ALL|wx.RIGHT|wx.ALIGN_RIGHT,5)
 
@@ -307,7 +319,51 @@ class AppFrame(wx.Frame):
 		self.SetSize((w,h))
 		self.Show()
 
-	
+	def featuresSelected(self,event):
+		if event.IsChecked():
+			self.selectedFeaturesCount += 1
+			if self.selectedFeaturesCount > 1 :
+				self.optionPanel.Enable(True)
+				self.algorithmPanel.Enable(True)
+				self.buttonGenerate.Enable(True)
+				self.buttonReset.Enable(True)
+				self.feature1.Enable(True)
+				self.feature2.Enable(True)
+				if (self.algorithm1.GetValue()):
+					self.buttonStart.Enable(True)
+
+			if self.selectedFeaturesCount == 1:
+				self.feature1.Enable(True)
+				for key in featureCB.keys():
+					if featureCB[key].GetValue() and key == "Mean Pixel Intensity":
+						self.optionPanel.Enable(True)
+						self.algorithmPanel.Enable(True)
+						self.buttonGenerate.Enable(True)
+						self.buttonStart.Enable(True)
+						print key
+
+		else:
+			self.selectedFeaturesCount -= 1
+			if self.selectedFeaturesCount <=1 :
+				self.optionPanel.Enable(False)
+				self.algorithmPanel.Enable(False)
+				self.buttonStart.Enable(False)
+				self.buttonGenerate.Enable(False)
+				self.buttonReset.Enable(False)						
+				self.feature1.Enable(False)
+				self.feature2.Enable(False)
+				self.axes.clear()
+				self.canvas.draw()
+			if self.selectedFeaturesCount == 1:
+				for key in featureCB.keys():
+					if featureCB[key].GetValue() and key == "Mean Pixel Intensity":
+						self.optionPanel.Enable(True)
+						self.algorithmPanel.Enable(True)
+						self.buttonGenerate.Enable(True)
+						self.buttonStart.Enable(True)
+						print key
+				self.feature1.Enable(True)
+
 	def OnSpinback(self, name, value):
 		if verbose:
 			print 'On Spin Back', name, value
@@ -319,8 +375,28 @@ class AppFrame(wx.Frame):
 	def resetProcess(self,event):
 		self.axes.clear()
 		self.canvas.draw()
+		self.pointToPick = int(self.optionPanel.textBox.GetValue())
+		if self.algorithm1.GetValue():
+			self.buttonStart.Enable(True)
+		else:
+			self.buttonStart.Enable(False)
 
+		featureList = []
+		for key in featureCB.keys():
+			if featureCB[key].GetValue():
+				featureList.append(key)
+
+		print featureList
+		self.filename = self.filebrowser.GetValue().split('/')[-1].split('.')[0]
+		self.fullFilename = self.filebrowser.GetValue()
+		datalist = getFeatures(self.filename, self.dictionary[featureList[0]],
+					 self.dictionary[featureList[1]])
+		self.data = vstack([(f1,f2) for (f,n, f1, f2) in datalist])
+		self.init_plot(self.data, self.k, featureList[0], featureList[1])
+		
 	def updateHistory(self, event):
+
+		self.featuresPanel.Enable(True)
 		value = self.filebrowser.GetValue()
 		print 'Update History',value
 		if not value:
@@ -380,18 +456,46 @@ class AppFrame(wx.Frame):
 		cv2.waitKey()
 		#closeConnBaseDB()
 		#return(im)
+	def pickInputCentroids(self,userCentroid):
+		print 'In app Frame',userCentroid
+		self.pointToPick = int(self.optionPanel.textBox.GetValue())
+		if userCentroid:
+			self.buttonStart.Enable(False)
+		else:
+			# self.axes.clear()
+			# self.canvas.draw()
+			self.buttonStart.Enable(True)
 
 	def opticsSelected(self,event):
 		self.optionPanel.showUpdates.Enable(False)
 		self.optionPanel.chooseCentroid.Enable(False)
+		self.buttonStart.Enable(True)
 
 	def kmeansSelected(self,event):
 		self.optionPanel.showUpdates.Enable(True)
 		self.optionPanel.chooseCentroid.Enable(True)
+		if self.optionPanel.chooseCentroid.GetValue() and self.pointToPick == 0:
+			self.buttonStart.Enable(True)
+		elif not self.optionPanel.chooseCentroid.GetValue():
+			self.buttonStart.Enable(True)
+		
 
 	def onGraphClick(self,event):
 		print 'button=%d, x=%d, y=%d, xdata=%f, ydata=%f'%(
 			event.button, event.x, event.y, event.xdata, event.ydata)
+
+		print self.optionPanel.chooseCentroid.GetValue()
+		print self.pointToPick
+
+		if self.optionPanel.chooseCentroid.GetValue() and self.pointToPick > 0:
+			self.pointToPick -= 1
+			#self.axes.plot(event.xdata,event.ydata, color='b',picker=5)
+			self.axes.plot(event.xdata,event.ydata,color='r', marker='H',markersize=20.0,picker=5)
+			self.canvas.draw()
+			self.centroids.append([event.xdata,event.ydata])
+			if self.pointToPick == 0 :
+				self.buttonStart.Enable(True)
+
 
 	def onNucleiPick(self,event):
 		thisline = event.artist
@@ -408,7 +512,7 @@ class AppFrame(wx.Frame):
 		isShowUpdate = self.optionPanel.showUpdates.GetValue()
 		isKmeans = self.algorithm1.GetValue()
 		isOptics = self.algorithm2.GetValue()
-		isPickCentroids = self.optionPanel.chooseCentroid.GetValue()
+		self.isPickCentroids = self.optionPanel.chooseCentroid.GetValue()
 
 		print 'spin_panels', spinPanels.keys()
 		for key in featureCB.keys():
@@ -422,8 +526,8 @@ class AppFrame(wx.Frame):
 		print "Kmeans Selected= ",isKmeans
 		print "OPTICS Selected= ",self.algorithm2.GetValue()
 
-		if isPickCentroids:
-			self.pointToPick = self.k
+		self.buttonReset.Enable(True)
+		self.buttonStart.Enable(False)
 
 		for key in spinPanels.keys():
 			print self.feature1.rangeValue[key].sc.GetValue()
@@ -442,10 +546,6 @@ class AppFrame(wx.Frame):
 				#print datalist
 				self.data = vstack([(f1,f2) for (f,n, f1, f2) in datalist])
 				#Intial clusters from selecting points -- start
-				if isPickCentroids:
-					print 'Picking Centroids'
-					wx.MessageBox("Please provide all centroids")
-					dialog.Destroy()
 
 
 				#Intial clusters from selecting points -- end
@@ -455,7 +555,8 @@ class AppFrame(wx.Frame):
 				if not self.animation:
 					self.cluster_kmeans(datalist, self.k, False)
 				else:
-					self.centroids = self.init_cluster()
+					if not self.isPickCentroids:
+						self.centroids = self.init_cluster()
 					self.iterTimer = 0
 					self.redraw_timer.Start(2)
 			else:
@@ -634,7 +735,8 @@ class AppFrame(wx.Frame):
 						feature2Bound=None,iter=None):
 		random.seed(time.time())
 		#TODO: If initial centroid not given only
-		self.centroids,_ = kmeans2(self.data, self.k, iter=1, thresh=1e-05, minit='random')
+		if not self.isPickCentroids:
+			self.centroids,_ = kmeans2(self.data, self.k, iter=1, thresh=1e-05, minit='random')
 		lastCentroids = None
 		print self.centroids
 		print '\n'

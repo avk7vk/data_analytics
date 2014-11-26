@@ -57,13 +57,14 @@ def insertData(datalist, override=True):
 			cursor.execute("DELETE FROM Features WHERE IMAGE_NAME = '%s' AND NUCLEI = '%d'" % stuple)
 			cursor.execute("INSERT INTO Features VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)", datatuple)
 			conn.commit()
-def getFeatures(feature1, feature2):
+def getFeatures(filename, feature1, feature2):
 	conn = getConnBaseDB()
 	if conn == None:
 		print "Looks like DB is not initialized."
 	cursor = conn.cursor()
-	cursor.execute("SELECT NUCLEI, "+feature1+", "+feature2+" FROM Features")
-	return [(str(n), float(f1), float(f2)) for (n, f1, f2) in cursor.fetchall()]
+	stuple = (filename,)
+	cursor.execute("SELECT IMAGE_NAME, NUCLEI, "+feature1+", "+feature2+" FROM Features WHERE IMAGE_NAME = '%s'" % stuple)
+	return [(str(f), int(n), float(f1), float(f2)) for (f,n, f1, f2) in cursor.fetchall()]
 
 def getSingleFeature(feature):
 	conn = getConnBaseDB()

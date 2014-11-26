@@ -28,7 +28,7 @@ def generate_image(tile_name,no_clusters,code,image_path):
 	colors = {0:(0,0,255),1:(0,255,0),2:(255,0,0),3:(0,0,128),4:(255,255,0),5:(0,255,255),6:(255,0,255),7:(128,0,128)
 			,8:(128,0,0),9:(128,128,128)}
 	basedb = dbsetup.getBaseDB()
-	conn = sqlite3.connect(basedb)
+	conn = getConnBaseDB() #sqlite3.connect(basedb)
 	#Query DB to get boundary values for this image.
 	c = conn.cursor()
 	c.execute("SELECT BOUNDARY_VALS FROM Features WHERE IMAGE_NAME = '%s'" %tile_name)

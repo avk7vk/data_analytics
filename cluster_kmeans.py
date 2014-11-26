@@ -20,6 +20,7 @@ import threading
 import sys
 
 class Plot (threading.Thread):
+#class Plot:
 	app = wx.PySimpleApp()
 	frame = wx.Frame(None,title="Clusters over generations")
 	panel = wx.Panel(frame)
@@ -138,8 +139,8 @@ def cluster_kmeans(datalist, k, animation=True, feature1Bound=None,
 '''
 if __name__ == '__main__':
 	initializeBaseDB()
-	data = getFeatures('Feature1', 'Feature2')
+	data = getFeatures('AREA', 'PERIMETER')
 	#print data
 	closeConnBaseDB()
-	cluster_kmeans(data,10)
+	cluster_kmeans(data,int(sys.argv[1]))
 	sys.exit()
