@@ -523,14 +523,35 @@ class AppFrame(wx.Frame):
 			boundary_vals = [[int(float(n)) for n in i.split(',')] for i in boundary_vals]
 			contr = np.array(boundary_vals)
 			contour_list.append(contr)
+
+		print self.fullFilename
 		im = cv2.imread(self.fullFilename)
 		for index,i in enumerate(self.clusterIds):
 			cv2.drawContours(im,contour_list,index,colors[i],-1)
 
 		outputfile = "Output_"+self.filename+"_clustered_"+str(int(time.time()))+".tif"
 		cv2.imwrite(outputfile,im);
-		cv2.imshow('image',im)
-		cv2.waitKey()
+
+
+		print "'Done Displaying the image"
+		imageFile = outputfile
+                print imageFile
+                win = wx.Frame(None, title = imageFile, size=(500,500),
+                                                style = wx.DEFAULT_FRAME_STYLE ^wx.RESIZE_BORDER)
+                ipanel = wx.Panel(win, -1)
+
+		image = wx.ImageFromBitmap(wx.Bitmap(imageFile))
+		image = image.Scale(500,500, wx.IMAGE_QUALITY_HIGH)
+		
+		bitmap = wx.BitmapFromImage(image)
+		control = wx.StaticBitmap(ipanel,-1,bitmap)
+		control.SetPosition((10,10))
+		win.Show(True)
+
+		#cv2.imshow('image',im)
+		#print "show window"
+		#cv2.waitKey()
+		print "byee"
 		#closeConnBaseDB()
 		#return(im)
 
@@ -556,6 +577,7 @@ class AppFrame(wx.Frame):
 		self.optionPanel.showUpdates.Enable(False)
 		self.optionPanel.chooseCentroid.Enable(False)
 		self.buttonStart.Enable(True)
+		self.buttonGenerate.Enable(False)
 
 
 	#######################################################################
@@ -564,6 +586,7 @@ class AppFrame(wx.Frame):
 	def kmeansSelected(self,event):
 		self.optionPanel.showUpdates.Enable(True)
 		self.optionPanel.chooseCentroid.Enable(True)
+		self.buttonGenerate.Enable(True)
 		if self.optionPanel.chooseCentroid.GetValue() and self.pointToPick == 0:
 			self.buttonStart.Enable(True)
 		elif not self.optionPanel.chooseCentroid.GetValue():
@@ -722,7 +745,7 @@ class AppFrame(wx.Frame):
 					if not self.isPickCentroids:
 						self.centroids = self.init_cluster()
 					self.iterTimer = 0
-					self.redraw_timer.Start(2)
+					self.redraw_timer.Start(2000)
 			else:
 				self.data = vstack(self.helper_mean())
 				self.pixel_kmeans()
@@ -1043,7 +1066,8 @@ class AppFrame(wx.Frame):
 		for i in range(self.k):
 			self.axes.plot(self.data[self.clusterIds==i,0],self.data[self.clusterIds==i,1],color=self.colors[i],marker='o',linestyle='None',picker=5)
 			self.axes.plot(self.centroids[i,0],self.centroids[i,1],color=self.colors[i], marker='H',markersize=20.0,picker=5)
-		#for i in range(len(self.data)):  
+		print(self.centroids)		
+#for i in range(len(self.data)):  
 			#self.axes.plot([self.data[i,0],self.centroids[self.clusterIds[i],0]],[self.data[i,1],self.centroids[self.clusterIds[i],1]], color=self.colors[self.clusterIds[i]],picker=5)
 		self.canvas.draw()
 '''
