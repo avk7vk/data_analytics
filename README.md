@@ -75,6 +75,11 @@ distinct colors each representing an unique cluster. User has to click
 "Generate Image" button, which will then save an above described image,
 and also open up a pop up showing the same image.
 
-
-
-
+Dependent Packages
+------------------
+Numpy
+Scipy
+Matplotlib
+Pylab
+wxPython
+OpenCV
