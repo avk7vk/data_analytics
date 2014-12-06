@@ -112,20 +112,20 @@ def getAllFeatures(filename, feature1, feature2, val1,val2):
 	str2 = (val1,val2,)
 
 	if (filename == "all"):
-		cursor.execute("SELECT AREA,PERIMETER,ROUNDNESS,EQUI_DIAMETER,CONVEX_AREA,SOLIDITY,"
+		cursor.execute("SELECT IMAGE_NAME,NUCLEI,AREA,PERIMETER,ROUNDNESS,EQUI_DIAMETER,CONVEX_AREA,SOLIDITY,"
 					"MAJOR_AXIS_LEN,MINOR_AXIS_LEN,ORIENTATION,ECCENTRICITY,CIR_RADIUS,"
 					"SHAPE_INDEX,BORDER_INDEX,ASPECT_RATION,MAX_PIXEL_DEN,MIN_PIXEL_DEN FROM Features WHERE "+
 					feature1 +" = ?  AND "+ feature2 + " = ? ",str2)
 	else:
-		cursor.execute("SELECT AREA,PERIMETER,ROUNDNESS,EQUI_DIAMETER,CONVEX_AREA,SOLIDITY,"
+		cursor.execute("SELECT IMAGE_NAME,NUCLEI,AREA,PERIMETER,ROUNDNESS,EQUI_DIAMETER,CONVEX_AREA,SOLIDITY,"
 					"MAJOR_AXIS_LEN,MINOR_AXIS_LEN,ORIENTATION,ECCENTRICITY,CIR_RADIUS,"
 					"SHAPE_INDEX,BORDER_INDEX,ASPECT_RATION,MAX_PIXEL_DEN,MIN_PIXEL_DEN FROM Features WHERE IMAGE_NAME = ? AND "+ 
 					feature1 +" = ?  AND "+ feature2 + " = ? ",str1)
 	
-	return [[float(f1),float(f2),float(f3),float(f4),float(f5),
+	return [[f,i, float(f1),float(f2),float(f3),float(f4),float(f5),
 			 float(f6),float(f7),float(f8),float(f9),float(f10),
 			 float(f11),float(f12),float(f13),float(f14),float(f15),float(f16)] 
-			 for (f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13,f14,f15,f16) in cursor.fetchall()]	
+			 for (f,i,f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13,f14,f15,f16) in cursor.fetchall()]	
 
 
 def getSingleFeature(feature):

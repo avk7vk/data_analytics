@@ -26,7 +26,7 @@ import OpticsClusterArea as OP
 from itertools import *
 import AutomaticClustering as AutoC
 import sqlite3 as lite
-
+from sklearn.cluster import KMeans
 
 
 
@@ -626,8 +626,10 @@ class AppFrame(wx.Frame):
 		xdata = thisline.get_xdata()
 		ydata = thisline.get_ydata()
 		ind = event.ind
+		print thisline
+		print event
 		featureList = []
-		featureKeys = ['AREA','PERIMETER','ROUNDNESS','EQUI_DIAMETER','CONVEX_AREA','SOLIDITY','MAJOR_AXIS_LEN','MINOR_AXIS_LEN','ORIENTATION','ECCENTRICITY',
+		featureKeys = ['IMAGE FILE','ID','AREA','PERIMETER','ROUNDNESS','EQUI_DIAMETER','CONVEX_AREA','SOLIDITY','MAJOR_AXIS_LEN','MINOR_AXIS_LEN','ORIENTATION','ECCENTRICITY',
 				'CIR_RADIUS','SHAPE_INDEX','BORDER_INDEX','ASPECT_RATIO','MAX_PIXEL_DEN','MIN_PIXEL_DEN']
 		for key in featureCB.keys():
 			if featureCB[key].GetValue():
@@ -707,7 +709,7 @@ class AppFrame(wx.Frame):
 					fList.append(self.dictionary[item])
 
 				dataList = getFeaturesList(self.filename,fList)
-				print dataList
+				#print dataList
 				
 				list1 = []
 				list2 = []
@@ -718,7 +720,7 @@ class AppFrame(wx.Frame):
 				new_list = [map(float,list2[2:])  for list2 in dataList]
 				#new_list = [(float(j) for j in i)for i in new_list]
 					
-				print "new_list",new_list
+				#print "new_list",new_list
 				#self.data = vstack([list1  for list2 in dataList])
 				self.data = vstack(new_list)
 				#print self.data	
@@ -857,9 +859,15 @@ class AppFrame(wx.Frame):
 	def pixel_kmeans(self, feature1Bound=None,
 						feature2Bound=None,iter=None):
 		random.seed(time.time())
-		self.centroids,_ = kmeans2(self.data, self.k)
+		km_obj = KMeans(n_clusters=self.k, init='random', n_init=1,
+                        max_iter=self.iterations, tol=0.0001, precompute_distances=True,
+                         n_jobs=-1, random_state=None)
+		km_obj.fit(self.data)
+		self.centroids = km_obj.cluster_centers_
+		self.clusterIds = km_obj.labels_
+		#self.centroids,_ = kmeans2(self.data, self.k)
 		print len(self.centroids)
-		self.clusterIds,_ = vq(self.data,self.centroids)
+		#self.clusterIds,_ = vq(self.data,self.centroids)
 		sets = set(self.clusterIds)
 		print sets
 		self.generate_image()
@@ -906,7 +914,11 @@ class AppFrame(wx.Frame):
 	#######################################################################
 	def init_cluster(self):
 		print "init_cluster function"
-		centroids,_ = kmeans2(self.data, self.k, iter=1, thresh=1e-05, minit='random')
+		km_obj = KMeans(n_clusters=self.k, init='random', n_init=1,
+                        max_iter=1, tol=0.0001, precompute_distances=True,
+                         n_jobs=-1, random_state=None)
+                km_obj.fit(self.data)
+		centroids = km_obj.cluster_centers_
 		return centroids
 
 
@@ -918,8 +930,12 @@ class AppFrame(wx.Frame):
 		lastCentroids = vstack(list(self.centroids)[:])
 		print "timer Kmeans"
 		print "last Centroids", lastCentroids
-		self.centroids,_ = kmeans2(self.data, lastCentroids, iter=1, thresh=1e-05, minit='matrix')
-		self.clusterIds,_ = vq(self.data,self.centroids)
+		km_obj = KMeans(n_clusters=self.k, init=lastCentroids, n_init=1,
+                        max_iter=1, tol=0.0001, precompute_distances=True,
+                         n_jobs=-1, random_state=None)
+                km_obj.fit(self.data)
+		self.centroids = km_obj.cluster_centers_
+		self.clusterIds = km_obj.labels_
 		self.redraw(self.iterTimer)
 		return array_equal(lastCentroids,self.centroids)
 
@@ -979,24 +995,13 @@ class AppFrame(wx.Frame):
 		outputfile = "Output.txt"
 		fh = open(outputfile, "w")
 		
-		print "In cluster_kmeansMul"	
-		self.centroids,_ = kmeans2(self.data, self.k, iter=1, thresh=1e-05, minit='random')
-		lastCentroids = None
-		print self.centroids
-		print '\n'
-		i = 0
-		while not array_equal(lastCentroids,self.centroids) and i < self.iterations:
-			i+=1
-			lastCentroids = vstack(list(self.centroids)[:])
-			self.centroids,_ = kmeans2(self.data, lastCentroids, iter=1, thresh=1e-05, minit='matrix')
-			self.clusterIds,_ = vq(self.data,self.centroids)
-		
-		print i, self.iterations
-		print self.centroids
+		km_obj = KMeans(n_clusters=self.k, init='random', n_init=1,
+                        max_iter=self.iterations, tol=0.0001, precompute_distances=True,
+                         n_jobs=-1, random_state=None)
+		km_obj.fit(self.data)
+		self.centroids = km_obj.cluster_centers_
+		self.clusterIds = km_obj.labels_	
 
-		fh.write("Iteration Number --------->" + str(i))
-		fh.write("Current Centroids --------->\n")
-		print type(self.centroids.tolist())
 		fh.write(str(self.centroids.tolist()))
 		fh.write("Current clusters formed\n")
 		for j in range(self.k):
@@ -1005,7 +1010,7 @@ class AppFrame(wx.Frame):
 				if self.clusterIds[l] == j:
 					fh.write(str(self.data[l])+"\n")
 		#fh.write(str(self.clusterIds.tolist()))
-		print self.data
+		#print self.data
 		fh.close()
 		print 'done'
 		self.redraw(-1)
@@ -1022,23 +1027,21 @@ class AppFrame(wx.Frame):
 	def cluster_kmeans(self, feature1Bound=None,
 						feature2Bound=None,iter=None):
 		random.seed(time.time())
-		#TODO: If initial centroid not given only
-		print "Are initial centroid given::",self.isPickCentroids
-		print "Initial Centroids Are ", self.centroids
 		if not self.isPickCentroids:
-			self.centroids,_ = kmeans2(self.data, self.k, iter=1, thresh=1e-05, minit='random')
-		lastCentroids = None
-		print self.centroids
-		print '\n'
-		i = 0
-		while not array_equal(lastCentroids,self.centroids) and i < self.iterations:
-			i+=1
-			lastCentroids = vstack(list(self.centroids)[:])
-			self.centroids,_ = kmeans2(self.data, lastCentroids, iter=1, thresh=1e-05, minit='matrix')
-			self.clusterIds,_ = vq(self.data,self.centroids)
-		self.redraw(-1)
-		print i, self.iterations
-		print self.centroids
+                        km_obj = KMeans(n_clusters=self.k, init='random', n_init=1,
+                        max_iter=self.iterations, tol=0.0001, precompute_distances=True,
+                         n_jobs=-1, random_state=None)
+                        km_obj.fit(self.data)
+                else :
+                        km_obj = KMeans(n_clusters=self.k, init=self.centroids, n_init=1,
+                        max_iter=self.iterations, tol=0.0001, precompute_distances=True,
+                         n_jobs=-1, random_state=None)
+			km_obj.fit(self.data)
+                self.centroids = km_obj.cluster_centers_
+                self.clusterIds = km_obj.labels_ #vq(self.data,self.centroids)
+                self.redraw(-1)
+		#print i, self.iterations
+		#print self.centroids
 
 
 	#####################################################################
