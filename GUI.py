@@ -128,7 +128,7 @@ class SpinPanel(wx.Panel):
 #####################################################################################
 class AppFrame(wx.Frame):
 	def __init__(self):
-		setBaseDB('dass4.db')
+		setBaseDB('dass.db')
 		initializeBaseDB()
 		
 		def makeSP(name, labels, statictexts = None):
