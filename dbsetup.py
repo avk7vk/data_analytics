@@ -1,6 +1,6 @@
 import random
 import sqlite3
-basedb = "dass4.db"
+basedb = "dass.db"
 basedb_conn = None
 
 def setBaseDB(name):

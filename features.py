@@ -9,10 +9,19 @@ import test_image
 import dbsetup
 import time
 
+'''
+ parse_data function input parameters:
+ path:This is the absolute path of the output folder which contains text files that are to be parsed
+ for feature extraction.
+ image_path:Absolute path of folder that contains original .tif formatted input title images
+ This function essentially locates and parses text files to extract various number
+ of features and extracts them into our sqlite database.
+ In general, this script is used one time to parse data,get features and store them in DB.
 
-def parse_data(path):
+'''
+def parse_data(path,image_path):
 	dbsetup.initializeBaseDB()
-	image_path = "/data_595_input";
+	#image_path = "/data03/shared/data_595_input"
         pattern = '*.txt'
         for root, dirs, files in os.walk(path):
                 for filename in fnmatch.filter(files,pattern):
@@ -77,12 +86,40 @@ def parse_data(path):
     					# length of MAJOR and minor axis
     					majoraxis_length = float("{0:.2f}".format(max(axes)))
     					minoraxis_length = float("{0:.2f}".format(min(axes)))
+					orientation_angle = float("{0:.2f}".format(orientation))
 					datalist.append(majoraxis_length)
 					datalist.append(minoraxis_length)
+					datalist.append(orientation_angle)
     					# eccentricity = sqrt( 1 - (ma/MA)^2) --- ma= minor axis --- MA= major axis
     					eccentricity = float("{0:.2f}".format(nump.sqrt(1-(minoraxis_length/majoraxis_length)**2)))
 					datalist.append(eccentricity)
+	
+					#Radius of minimum enclosing circle
+					(x,y),radius = cv2.minEnclosingCircle(contr)
+					encl_radius = float("{0:.2f}".format(radius))
+					datalist.append(encl_radius)
+					#Shape index
+					
+					edgeLength = 0
+					for j in range(0, len(contr)-1):
+						k = j + 1
+						length = nump.sqrt(((contr[k][1] - contr[j][1]) ** 2) + ((contr[k][0] - contr[j][0]) ** 2))
+						edgeLength += length
+					shape_index = (edgeLength)/(4*(nump.sqrt(area)))
 
+					shape_index = float("{0:.2f}".format(shape_index))
+					datalist.append(shape_index)
+			
+                                        #border_index
+                                        (x,y),(w,h),theta = cv2.minAreaRect(contr)
+                                        border_index = edgeLength/(2*(w+h))
+					
+					border_index = float("{0:.2f}".format(border_index))
+					datalist.append(border_index)
+                                        # aspect ratio
+                                        aspect_ratio = w/float(h)
+					aspect_ratio = float("{0:.2f}".format(aspect_ratio))
+					datalist.append(aspect_ratio)
 					datalist.append(str(boundarys))
 					# Find Mean Pixel Intensity
 					mask = nump.zeros(imgray.shape,nump.uint8)
@@ -99,9 +136,16 @@ def parse_data(path):
 			print "Parsing done for %s ! Time taken %d "%(filename,float((time.time()-t)/60))				
 	#test_image.image_clustering(means_list, contr_list, img_path)
 	dbsetup.closeConnBaseDB()
+'''
+Script can be executed as
+python features.py /data03/shared/data_output /data03/shared/data_input
+where the first parameter is folder containing text files and the 
+second one is the folder containing tif images
+
+'''
 if __name__ == '__main__':
 	p = time.time()
-        path = sys.argv[1]
-        parse_data(path)
+        path,image_path = sys.argv[1],sys.argv[2]
+        parse_data(path,image_path)
 	print 'END TIME:',time.time()-p
 
