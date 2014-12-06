@@ -83,3 +83,5 @@ Matplotlib
 Pylab
 wxPython
 OpenCV
+sklearn
+hcluster
