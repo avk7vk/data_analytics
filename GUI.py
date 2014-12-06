@@ -627,7 +627,8 @@ class AppFrame(wx.Frame):
 		ydata = thisline.get_ydata()
 		ind = event.ind
 		featureList = []
-		featureKeys = featureCB.keys()
+		featureKeys = ['AREA','PERIMETER','ROUNDNESS','EQUI_DIAMETER','CONVEX_AREA','SOLIDITY','MAJOR_AXIS_LEN','MINOR_AXIS_LEN','ORIENTATION','ECCENTRICITY',
+				'CIR_RADIUS','SHAPE_INDEX','BORDER_INDEX','ASPECT_RATIO','MAX_PIXEL_DEN','MIN_PIXEL_DEN']
 		for key in featureCB.keys():
 			if featureCB[key].GetValue():
 				featureList.append(key)
